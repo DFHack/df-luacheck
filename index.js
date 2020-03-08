@@ -40,6 +40,7 @@ var reqignore = [
 	'remote.underscore',
 	'remote.deflatelua',
 	'dumper',
+	'json',
 ];
 var fnstocheck = [];
 var callers = [];
@@ -1373,6 +1374,8 @@ function fntype(call, ctx, opts) {
 					return rootctx.types.JSON;
 				if (call.arguments[0].value == 'dumper')
 					return rootctx.types.__dumper;
+				if (call.arguments[0].value == 'json')
+					return rootctx.types.JSON;
 			}
 			
 			return '__unknown';
@@ -1946,6 +1949,7 @@ function mightBeModified(n, body) {
 					return true;
 				}
 				break;
+			case 'DoStatement':
 			case 'WhileStatement':
 			case 'RepeatStatement':
 			case 'ForGenericStatement':
@@ -2600,7 +2604,7 @@ function processAST(body, ctx) {
 		else if (b.type == 'BreakStatement' || b.type == 'GotoStatement' || b.type == 'LabelStatement')
 			;
 
-		else if (b.type == 'WhileStatement' || b.type == 'RepeatStatement') {
+		else if (b.type == 'DoStatement' || b.type == 'WhileStatement' || b.type == 'RepeatStatement') {
 			if (b.condition) {
 				var t = checktype(b.condition, ctx);
 				// if (t == '__unknown')

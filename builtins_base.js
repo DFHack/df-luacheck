@@ -49,6 +49,7 @@ module.exports = {
 			_type: 'JSON',
 			_methods: {
 				'decode': 'table',
+				'decode_file': 'table',
 			},
 		},
 
