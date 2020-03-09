@@ -320,6 +320,7 @@ module.exports = {
 		'dfhack.units.getPosition': { _type:'tuple', _tuple:['number', 'number', 'number'] },
 		'dfhack.units.getProfessionColor': 'number',
 		'dfhack.units.getProfessionName': 'string',
+		'dfhack.units.getUnitsInBox': 'df.unit[]',
 		'dfhack.units.getVisibleName': 'df.language_name',
 		'dfhack.units.isActive': 'bool',
 		'dfhack.units.isBaby': 'bool',

@@ -42,7 +42,7 @@ rm -f "$dfhack_dir/library/lua/plugins"
 ln -sf ../../plugins/lua "$dfhack_dir/library/lua/plugins"
 if (( $# > 0 )); then
 	while (( $# > 0 )); do
-		node "$luacheck_dir/index.js" $args -v "$dfhack_version" -S "$dfhack_dir/scripts" -I "$dfhack_dir/library/lua" -I "$dfhack_dir/scripts" -p dfhack "$1"
+		node "$luacheck_dir/index.js" $args -v "$dfhack_version" -S "$dfhack_dir/scripts" -I "$dfhack_dir/library/lua" -I "$dfhack_dir/scripts" -p dfhack -p class "$1"
 		if (( $? > 0 )); then had_error=1; fi
 		shift
 	done
@@ -51,7 +51,7 @@ else
 		if grep -qF "luacheck:skip-entirely" "$script_path"; then
 			continue
 		fi
-		node "$luacheck_dir/index.js" $args -v "$dfhack_version" -S "$dfhack_dir/scripts" -I "$dfhack_dir/library/lua" -I "$dfhack_dir/scripts" -p dfhack "$script_path"
+		node "$luacheck_dir/index.js" $args -v "$dfhack_version" -S "$dfhack_dir/scripts" -I "$dfhack_dir/library/lua" -I "$dfhack_dir/scripts" -p dfhack -p class "$script_path"
 		if (( $? > 0 )); then had_error=1; fi
 	done
 fi

@@ -112,7 +112,12 @@ function findtype(name, ctx, line) {
 		return findtype(name, ctx.parent);
 }
 
-function deepEqual(a, b, ctx, line) {
+function deepEqual(a, b, ctx, line, depth) {
+	if (depth > 75) {
+		fault('deepEqual too deep', a, b, typeof a, typeof b);
+		return false;
+	}
+
 	if (typeof a == 'string' && typeof b != 'string') {
 		a = expandtype(a, ctx, line, true) || a;
 	}
@@ -121,6 +126,9 @@ function deepEqual(a, b, ctx, line) {
 	}
 	if (b == 'null') {
 		return true;
+	}
+	if ((a && a._module) || (b && b._module)) {
+		return a == b;
 	}
 	if (a && b && (Object.hasOwnProperty.call(a, '_value') || Object.hasOwnProperty.call(b, '_value') || (a._type||a) == 'number' || (b._type||b) == 'number') && (a._type||a) == (b._type||b)) {
 		return true;
@@ -137,15 +145,19 @@ function deepEqual(a, b, ctx, line) {
 		return a == b;
 	}
 
+	if (a._type == 'function' || b._type == 'function') {
+		return a._type == 'function' && b._type == 'function';
+	}
+
 	if (b._type == 'table' && Object.keys(b).length == 1 && a._array) {
 		return true;
 	}
 
 	return Object.keys(a).concat(Object.keys(b)).every(function(k) {
 		if (k == '_array') {
-			return deepEqual(a[k] || arrayType(a, ctx, line), b[k] || arrayType(b, ctx, line), ctx, line);
+			return deepEqual(a[k] || arrayType(a, ctx, line), b[k] || arrayType(b, ctx, line), ctx, line, (depth || 0) + 1);
 		}
-		return deepEqual(a[k] || a._array, b[k] || b._array, ctx, line);
+		return deepEqual(a[k] || a._array, b[k] || b._array, ctx, line, (depth || 0) + 1);
 	});
 }
 
@@ -447,7 +459,7 @@ function checktype(expr, ctx, opts) {
 
 		var t = null;
 		for (var o = baset; o && !t; o = expandtype(o._super, o._defclass || ctx, expr.loc.start.line)) {
-			t = o[expr.identifier.name] || (o._module && findtype(expr.identifier.name, o._module, expr.loc.start.line));
+			t = o[expr.identifier.name] || (o._methods && o._methods[expr.identifier.name]) || (o._module && findtype(expr.identifier.name, o._module, expr.loc.start.line));
 		}
 
 		if (isPreload && (expr.identifier.name == '__index'))
@@ -1073,9 +1085,10 @@ function fntype(call, ctx, opts) {
 				_type: flatten(call.arguments[0], ctx),
 				_super: pt
 			};
-			if (pt != '__defclass_base') {
-				t.super = pt;
+			if (pt == '__defclass_base') {
+				pt = rootctx.types.__defclass_base;
 			}
+			t.super = pt;
 
 			var ctx1 = { _type:'__context', types:{}, parent:ctx };
 
@@ -1152,6 +1165,9 @@ function fntype(call, ctx, opts) {
 			else {
 				if (t._type == 'table' || t._array || t._type == '__arg') {
 					var at = arrayType(t, ctx, call.loc.start.line, kt);
+					if (!at) {
+						return 'none';
+					}
 					if (at && at._type != rt._type && at._sub && rt._super) {
 						for (var p = rt; p; p = p._super && expandtype(p._super, ctx, call.loc.start.line, true)) {
 							if (p._type == at._type) {
@@ -1647,6 +1663,9 @@ function fntype(call, ctx, opts) {
 			ctx2.types.self = argTypes.shift();
 		}
 	} else if (call.base.type == 'MemberExpression' && call.base.indexer == ':') {
+		if (call.base.base.name == 'self' && fn.identifier.indexer == ':') {
+			memberOf = expandtype('self', ctx, call.loc.start.line) || memberOf;
+		}
 		if (fn.identifier && fn.identifier.indexer == '.') {
 			firstArg--;
 			ctx2._args.unshift(fn.identifier.base);
@@ -1837,7 +1856,7 @@ function merge(a, b, ctx, line, quiet) {
 		}
 	}
 	if (!quiet) {
-		fault(line, 'Unable to merge types:', chalk.bold(a._type||a), 'and', chalk.bold(b._type||b));
+		fault(line, 'Unable to merge types:', a._type||a, 'and', b._type||b);
 	}
 	return '__unknown';
 }
@@ -2003,6 +2022,10 @@ function processAST(body, ctx) {
 			var member = null;
 			if (b.identifier.type == 'MemberExpression') {
 				base = checktype(b.identifier.base, ctx);
+				if (isPreload && b.identifier.base.name == 'common_methods') {
+					base.ATTRS = rootctx.types.__defclass_base.ATTRS;
+					rootctx.types.__defclass_base = base;
+				}
 				member = b.identifier.identifier.name;
 				if (base && base._type) {
 					for (var p = base; p && existing == '__unknown'; p = p._super && expandtype(p._super, ctx, b.loc.start.line, true)) {
